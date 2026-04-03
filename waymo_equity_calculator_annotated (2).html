@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Waymo Equity Decision Calculator</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f9f9f7;color:#1a1a18;padding:2rem 1rem;}
+.container{max-width:820px;margin:0 auto;}
+h1{font-size:20px;font-weight:500;margin-bottom:.25rem;}
+.subtitle{font-size:13px;color:#888;margin-bottom:2rem;}
+.sec{margin-bottom:2rem;}
+.sec-title{font-size:11px;font-weight:500;color:#888;text-transform:uppercase;letter-spacing:.07em;margin-bottom:1rem;}
+.inputs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;}
+.ir{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.il{font-size:13px;color:#555;flex:1;min-width:160px;}
+.iv{font-size:13px;font-weight:500;min-width:48px;text-align:right;}
+input[type=range]{flex:1;accent-color:#534AB7;}
+input[type=number]{border:1px solid #ddd;border-radius:6px;padding:4px 8px;font-size:13px;background:#fff;color:#1a1a18;}
+.nw-input{width:130px;}
+.pct-wrap{display:flex;align-items:center;gap:4px;}
+.pct-wrap input{width:80px;text-align:right;}
+.pct-label{font-size:13px;color:#555;}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:.75rem;}
+.mc{background:#f1efe8;border-radius:8px;padding:.75rem 1rem;}
+.ml{font-size:12px;color:#888;margin-bottom:4px;}
+.mv{font-size:20px;font-weight:500;}
+.ms{font-size:11px;color:#aaa;margin-top:2px;}
+.sgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:#ddd;border-radius:8px;overflow:hidden;}
+.sc{background:#fff;padding:.6rem .75rem;font-size:13px;}
+.sh{background:#f5f5f2;font-size:12px;font-weight:500;color:#888;padding:.5rem .75rem;}
+.pos{color:#1D9E75;}.neg{color:#D85A30;}
+hr.div{border:none;border-top:1px solid #eee;margin:1.5rem 0;}
+.note{font-size:12px;color:#aaa;margin-top:.5rem;}
+.explainer{background:#f1efe8;border-left:2px solid #ccc;border-radius:0 8px 8px 0;padding:.75rem 1rem;margin-bottom:1.25rem;}
+.explainer p{font-size:13px;color:#555;line-height:1.6;margin-bottom:.5rem;}
+.explainer p:last-child{margin-bottom:0;}
+.formula{font-family:'Courier New',monospace;font-size:12px;background:#fff;border:1px solid #ddd;border-radius:6px;padding:4px 10px;display:inline-block;margin:4px 0;color:#1a1a18;}
+.toggle{font-size:12px;color:#888;cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:4px;margin-bottom:.75rem;border:none;background:none;padding:0;font-family:inherit;}
+.toggle:hover{color:#555;}
+.toggle-arrow{display:inline-block;transition:transform .15s;font-size:10px;}
+.hidden{display:none;}
+@media(prefers-color-scheme:dark){
+  body{background:#1a1a18;color:#f0ede6;}
+  input[type=number]{background:#2a2a28;border-color:#444;color:#f0ede6;}
+  .il,.subtitle,.sec-title,.pct-label{color:#888;}
+  .mc{background:#2a2a28;}.ml,.ms{color:#888;}
+  .sc{background:#222;}.sh{background:#2a2a28;color:#888;}
+  .sgrid{background:#444;}hr.div{border-color:#333;}
+  .explainer{background:#222;border-left-color:#444;}
+  .explainer p{color:#aaa;}
+  .formula{background:#2a2a28;border-color:#444;color:#f0ede6;}
+  .toggle{color:#666;}.toggle:hover{color:#aaa;}
+  .note{color:#666;}
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Waymo equity decision calculator</h1>
+  <p class="subtitle">Kelly criterion · Sharpe ratio · scenario analysis</p>
+
+  <div class="sec">
+    <div class="sec-title">your situation</div>
+    <div class="inputs-grid">
+      <div>
+        <div class="ir"><span class="il">Net worth ($)</span><input type="number" id="netWorth" value="10000000" step="100000" class="nw-input"/></div>
+        <div class="ir"><span class="il">Waymo % of portfolio</span><input type="range" id="waymoAlloc" min="5" max="90" step="1" value="40"/><span class="iv" id="waymoAllocVal">40%</span></div>
+        <div class="ir"><span class="il">Sell this % of Waymo stake</span><input type="range" id="sellPct" min="1" max="20" step="1" value="20"/><span class="iv" id="sellPctVal">20%</span></div>
+        <div class="ir"><span class="il">Sale premium (exact %)</span><div class="pct-wrap"><input type="number" id="salePremium" value="13.32" step="0.01" min="0" max="200"/><span class="pct-label">%</span></div></div>
+      </div>
+      <div>
+        <div class="ir"><span class="il">Time horizon (years)</span><input type="range" id="horizon" min="1" max="7" step="1" value="4"/><span class="iv" id="horizonVal">4</span></div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="div"/>
+
+  <div class="sec">
+    <div class="sec-title">return &amp; risk assumptions</div>
+    <button class="toggle" onclick="toggleExplainer('volExp',this)"><span class="toggle-arrow">&#9658;</span> What is annualized volatility?</button>
+    <div id="volExp" class="explainer hidden">
+      <p>Volatility is the <strong>standard deviation of annual returns</strong> — it measures how widely outcomes are dispersed around the expected return, not the peak-to-trough swing in a single year.</p>
+      <p>With 45% volatility and a 22% expected return, roughly two-thirds of yearly outcomes will land between <strong>-23% and +67%</strong> (±1 standard deviation). About 95% land between -68% and +112% (±2σ). The tails go further.</p>
+      <p>The S&amp;P 500's long-run volatility is ~15–18%. Waymo at 45% reflects its pre-IPO status, capital intensity, geopolitical exposure, and concentrated technology risk — comparable to early-stage public AV companies like Tesla (~50–60% historically).</p>
+    </div>
+    <div class="inputs-grid">
+      <div>
+        <div class="ir"><span class="il">Expected annual return — Waymo</span><input type="range" id="waymoReturn" min="0" max="60" step="1" value="22"/><span class="iv" id="waymoReturnVal">22%</span></div>
+        <div class="ir"><span class="il">Waymo annualized volatility (σ)</span><input type="range" id="waymoVol" min="10" max="80" step="1" value="45"/><span class="iv" id="waymoVolVal">45%</span></div>
+      </div>
+      <div>
+        <div class="ir"><span class="il">Expected annual return — market</span><input type="range" id="mktReturn" min="0" max="20" step="1" value="9"/><span class="iv" id="mktReturnVal">9%</span></div>
+        <div class="ir"><span class="il">Market volatility (σ)</span><input type="range" id="mktVol" min="5" max="30" step="1" value="15"/><span class="iv" id="mktVolVal">15%</span></div>
+        <div class="ir"><span class="il">Risk-free rate</span><input type="range" id="rfr" min="0" max="8" step="0.5" value="4.5"/><span class="iv" id="rfrVal">4.5%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="div"/>
+
+  <div class="sec">
+    <div class="sec-title">kelly criterion — optimal allocation</div>
+    <button class="toggle" onclick="toggleExplainer('kellyExp',this)"><span class="toggle-arrow">&#9658;</span> What is the Kelly criterion?</button>
+    <div id="kellyExp" class="explainer hidden">
+      <p>Kelly tells you the <strong>theoretically optimal fraction of your portfolio</strong> to allocate to an asset, given your edge (excess return) and the variance of outcomes. Bet too little and you leave compounding on the table; bet too much and volatility destroys you.</p>
+      <div class="formula">Kelly % = (expected return − risk-free rate) / volatility²</div>
+      <p>The key insight: Kelly penalizes volatility quadratically. Doubling volatility cuts the optimal allocation by 4×. This is why high-volatility assets — even ones with strong expected returns — deserve smaller allocations than intuition suggests.</p>
+      <p>If your current allocation is <em>below</em> Kelly optimal, the math says hold (or buy more). If it's <em>above</em>, you're over-concentrated relative to your edge and selling makes sense. In practice, most people use "half Kelly" to account for model uncertainty.</p>
+    </div>
+    <div class="mgrid" id="kellyMetrics"></div>
+    <p class="note" id="kellyNote"></p>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">sharpe ratios</div>
+    <button class="toggle" onclick="toggleExplainer('sharpeExp',this)"><span class="toggle-arrow">&#9658;</span> What is the Sharpe ratio?</button>
+    <div id="sharpeExp" class="explainer hidden">
+      <p>Sharpe measures <strong>risk-adjusted return</strong> — how much excess return you earn per unit of volatility you endure. It lets you compare assets with different return and risk profiles on a level playing field.</p>
+      <div class="formula">Sharpe = (expected return − risk-free rate) / volatility</div>
+      <p>The risk-free rate subtraction is critical: it removes the return you could earn for free in Treasuries. What's left is your reward for taking risk. Dividing by volatility normalizes it.</p>
+      <p>Rough benchmarks: below 0.5 is mediocre, 0.5–1.0 is decent, above 1.0 is excellent. If Waymo's Sharpe is significantly higher than the market's, concentration is justified on a risk-adjusted basis. If they're close, you're bearing concentration risk for marginal edge.</p>
+    </div>
+    <div class="mgrid" id="sharpeMetrics"></div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">scenario analysis over <span id="horizonLabel">4</span> years</div>
+    <div id="scenarioTable"></div>
+    <p class="note">Bull = +1.5σ/yr, base = expected return, bear = −1σ/yr for Waymo. Market runs at expected return in all scenarios.</p>
+  </div>
+</div>
+
+<script>
+function toggleExplainer(id,btn){var el=document.getElementById(id);var arrow=btn.querySelector('.toggle-arrow');var hidden=el.classList.toggle('hidden');arrow.style.transform=hidden?'':'rotate(90deg)';}
+function fmt(n){return'$'+Math.round(n).toLocaleString();}
+function fmtPct(n){return(n>=0?'+':'')+n.toFixed(1)+'%';}
+function calc(){
+  var nw=parseFloat(document.getElementById('netWorth').value)||10000000;
+  var waymoAlloc=parseFloat(document.getElementById('waymoAlloc').value)/100;
+  var sellPct=parseFloat(document.getElementById('sellPct').value)/100;
+  var horizon=parseFloat(document.getElementById('horizon').value);
+  var salePremium=(parseFloat(document.getElementById('salePremium').value)||0)/100;
+  var wr=parseFloat(document.getElementById('waymoReturn').value)/100;
+  var wv=parseFloat(document.getElementById('waymoVol').value)/100;
+  var mr=parseFloat(document.getElementById('mktReturn').value)/100;
+  var mv=parseFloat(document.getElementById('mktVol').value)/100;
+  var rfr=parseFloat(document.getElementById('rfr').value)/100;
+  document.getElementById('waymoAllocVal').textContent=Math.round(waymoAlloc*100)+'%';
+  document.getElementById('sellPctVal').textContent=Math.round(sellPct*100)+'%';
+  document.getElementById('horizonVal').textContent=horizon;
+  document.getElementById('horizonLabel').textContent=horizon;
+  document.getElementById('waymoReturnVal').textContent=Math.round(wr*100)+'%';
+  document.getElementById('waymoVolVal').textContent=Math.round(wv*100)+'%';
+  document.getElementById('mktReturnVal').textContent=Math.round(mr*100)+'%';
+  document.getElementById('mktVolVal').textContent=Math.round(mv*100)+'%';
+  document.getElementById('rfrVal').textContent=(rfr*100).toFixed(1)+'%';
+  var waymoVal=nw*waymoAlloc;
+  var otherVal=nw-waymoVal;
+  var sellAmount=waymoVal*sellPct*(1+salePremium);
+  var postSaleWaymoVal=waymoVal*(1-sellPct);
+  var postSaleOther=otherVal+sellAmount;
+  var postSaleNW=postSaleWaymoVal+postSaleOther;
+  var sellAlloc=postSaleWaymoVal/postSaleNW;
+  var kellyWaymo=(wr-rfr)/(wv*wv);
+  var sharpeWaymo=(wr-rfr)/wv;
+  var sharpeMkt=(mr-rfr)/mv;
+  document.getElementById('kellyMetrics').innerHTML=
+    '<div class="mc"><div class="ml">Kelly optimal — Waymo</div><div class="mv">'+Math.min(Math.round(kellyWaymo*100),200)+'%'+(kellyWaymo>2?'+':'')+'</div><div class="ms">of total portfolio</div></div>'+
+    '<div class="mc"><div class="ml">Your current Waymo</div><div class="mv">'+Math.round(waymoAlloc*100)+'%</div><div class="ms">'+fmt(waymoVal)+'</div></div>'+
+    '<div class="mc"><div class="ml">Post-sale Waymo</div><div class="mv">'+Math.round(sellAlloc*100)+'%</div><div class="ms">'+fmt(postSaleWaymoVal)+'</div></div>'+
+    '<div class="mc"><div class="ml">Sale proceeds</div><div class="mv">'+fmt(sellAmount)+'</div><div class="ms">at +'+(salePremium*100).toFixed(2)+'% premium</div></div>';
+  var kellyVal=kellyWaymo*100;
+  document.getElementById('kellyNote').textContent=kellyVal>=waymoAlloc*100*0.9
+    ?'Kelly says your '+Math.round(waymoAlloc*100)+'% is '+(kellyVal>waymoAlloc*100?'below':'near')+' optimal at '+Math.round(kellyVal)+'% — holding makes sense on these assumptions.'
+    :'Kelly says optimal is '+Math.round(kellyVal)+'% — your '+Math.round(waymoAlloc*100)+'% is above optimal. Selling '+Math.round(sellPct*100)+'% moves you closer.';
+  var sw=sharpeWaymo>=sharpeMkt?'#1D9E75':'#D85A30';
+  document.getElementById('sharpeMetrics').innerHTML=
+    '<div class="mc"><div class="ml">Sharpe — Waymo</div><div class="mv" style="color:'+sw+'">'+sharpeWaymo.toFixed(2)+'</div><div class="ms">(return − rfr) / vol</div></div>'+
+    '<div class="mc"><div class="ml">Sharpe — market</div><div class="mv">'+sharpeMkt.toFixed(2)+'</div><div class="ms">(return − rfr) / vol</div></div>'+
+    '<div class="mc"><div class="ml">Waymo vs market edge</div><div class="mv" style="color:'+sw+'">'+(sharpeWaymo>=sharpeMkt?'+':'')+(sharpeWaymo-sharpeMkt).toFixed(2)+'</div><div class="ms">Sharpe difference</div></div>'+
+    '<div class="mc"><div class="ml">Interpretation</div><div class="mv" style="font-size:13px;font-weight:400;margin-top:4px;color:#888">'+(sharpeWaymo>sharpeMkt?'Waymo better risk-adjusted':'Market better risk-adjusted')+'</div></div>';
+  var scenarios=[{name:'Bear',waymoAnnual:wr-wv},{name:'Base',waymoAnnual:wr},{name:'Bull',waymoAnnual:wr+1.5*wv}];
+  var t='<div class="sgrid"><div class="sh">Scenario</div><div class="sh">Hold all</div><div class="sh">Sell '+Math.round(sellPct*100)+'%</div>';
+  scenarios.forEach(function(s){
+    var wg=Math.pow(1+s.waymoAnnual,horizon),mg=Math.pow(1+mr,horizon);
+    var ht=waymoVal*wg+otherVal*mg,st=postSaleWaymoVal*wg+postSaleOther*mg;
+    var hp=((ht/nw)-1)*100,sp=((st/nw)-1)*100;
+    t+='<div class="sc" style="font-weight:500">'+s.name+'<br><span style="font-size:11px;color:#aaa">'+fmtPct(s.waymoAnnual*100)+'/yr</span></div>';
+    t+='<div class="sc"><span class="'+(hp>=0?'pos':'neg')+'">'+fmt(ht)+'</span><br><span style="font-size:11px;color:#aaa">'+fmtPct(hp)+' total</span></div>';
+    t+='<div class="sc"><span class="'+(sp>=0?'pos':'neg')+'">'+fmt(st)+'</span><br><span style="font-size:11px;color:#aaa">'+fmtPct(sp)+' total</span></div>';
+  });
+  t+='</div>';
+  document.getElementById('scenarioTable').innerHTML=t;
+}
+['netWorth','waymoAlloc','sellPct','horizon','salePremium','waymoReturn','waymoVol','mktReturn','mktVol','rfr'].forEach(function(id){document.getElementById(id).addEventListener('input',calc);});
+calc();
+</script>
+</body>
+</html>
