@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Waymo Equity Decision Calculator</title>
+<meta name="description" content="Static calculator for evaluating concentrated Waymo equity exposure with Kelly criterion, Sharpe ratio, and scenario analysis.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+  <noscript><p class="note">This calculator needs JavaScript enabled to update the metrics and scenario analysis.</p></noscript>
+  <h1>Waymo equity decision calculator</h1>
+  <p class="subtitle">Kelly criterion · Sharpe ratio · scenario analysis</p>
+
+  <div class="sec">
+    <div class="sec-title">your situation</div>
+    <div class="inputs-grid">
+      <div>
+        <div class="ir"><span class="il">Net worth ($)</span><input type="number" id="netWorth" value="10000000" step="100000" class="nw-input"></div>
+        <div class="ir"><span class="il">Waymo % of portfolio</span><input type="range" id="waymoAlloc" min="5" max="90" step="1" value="40"><span class="iv" id="waymoAllocVal">40%</span></div>
+        <div class="ir"><span class="il">Sell this % of Waymo stake</span><input type="range" id="sellPct" min="1" max="20" step="1" value="20"><span class="iv" id="sellPctVal">20%</span></div>
+        <div class="ir"><span class="il">Vest price ($/share)</span><input type="number" id="vestPrice" value="145" step="0.01" min="0.01" class="num-input"></div>
+        <div class="ir"><span class="il">Sell price ($/share)</span><input type="number" id="sellPrice" value="165" step="0.01" min="0.01" class="num-input"></div>
+      </div>
+      <div>
+        <div class="ir"><span class="il">Tax rate on realized gain</span><div class="pct-wrap"><input type="number" id="taxRate" value="37" step="0.1" min="0" max="100" class="num-input"><span class="pct-label">%</span></div></div>
+        <div class="ir"><span class="il">Sale premium from vest to sell</span><span class="iv" id="salePremiumVal">+13.8%</span></div>
+        <div class="ir"><span class="il">Time horizon (years)</span><input type="range" id="horizon" min="1" max="7" step="1" value="4"><span class="iv" id="horizonVal">4</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">tax-aware sale summary</div>
+    <div class="mgrid sale-grid" id="saleMetrics"></div>
+    <p class="note">Post-sale allocation and scenarios use <strong>after-tax</strong> proceeds, not gross sale value.</p>
+  </div>
+
+  <hr class="div">
+
+  <div class="sec">
+    <div class="sec-title">return &amp; risk assumptions</div>
+    <button class="toggle" type="button" data-target="volExp"><span class="toggle-arrow">&#9658;</span> What is annualized volatility?</button>
+    <div id="volExp" class="explainer hidden">
+      <p>Volatility is the <strong>standard deviation of annual returns</strong> — it measures how widely outcomes are dispersed around the expected return, not the peak-to-trough swing in a single year.</p>
+      <p>With 45% volatility and a 22% expected return, roughly two-thirds of yearly outcomes will land between <strong>-23% and +67%</strong> (±1 standard deviation). About 95% land between -68% and +112% (±2σ). The tails go further.</p>
+      <p>The S&amp;P 500's long-run volatility is ~15–18%. Waymo at 45% reflects its pre-IPO status, capital intensity, geopolitical exposure, and concentrated technology risk — comparable to early-stage public AV companies like Tesla (~50–60% historically).</p>
+    </div>
+    <div class="inputs-grid">
+      <div>
+        <div class="ir"><span class="il">Expected annual return — Waymo</span><input type="range" id="waymoReturn" min="0" max="60" step="1" value="22"><span class="iv" id="waymoReturnVal">22%</span></div>
+        <div class="ir"><span class="il">Waymo annualized volatility (σ)</span><input type="range" id="waymoVol" min="10" max="80" step="1" value="45"><span class="iv" id="waymoVolVal">45%</span></div>
+      </div>
+      <div>
+        <div class="ir"><span class="il">Expected annual return — market</span><input type="range" id="mktReturn" min="0" max="20" step="1" value="9"><span class="iv" id="mktReturnVal">9%</span></div>
+        <div class="ir"><span class="il">Market volatility (σ)</span><input type="range" id="mktVol" min="5" max="30" step="1" value="15"><span class="iv" id="mktVolVal">15%</span></div>
+        <div class="ir"><span class="il">Risk-free rate</span><input type="range" id="rfr" min="0" max="8" step="0.5" value="4.5"><span class="iv" id="rfrVal">4.5%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="div">
+
+  <div class="sec">
+    <div class="sec-title">kelly criterion — optimal allocation</div>
+    <button class="toggle" type="button" data-target="kellyExp"><span class="toggle-arrow">&#9658;</span> What is the Kelly criterion?</button>
+    <div id="kellyExp" class="explainer hidden">
+      <p>Kelly tells you the <strong>theoretically optimal fraction of your portfolio</strong> to allocate to an asset, given your edge (excess return) and the variance of outcomes. Bet too little and you leave compounding on the table; bet too much and volatility destroys you.</p>
+      <div class="formula">Kelly % = (expected return − risk-free rate) / volatility²</div>
+      <p>The key insight: Kelly penalizes volatility quadratically. Doubling volatility cuts the optimal allocation by 4×. This is why high-volatility assets — even ones with strong expected returns — deserve smaller allocations than intuition suggests.</p>
+      <p>If your current allocation is <em>below</em> Kelly optimal, the math says hold (or buy more). If it's <em>above</em>, you're over-concentrated relative to your edge and selling makes sense. In practice, most people use "half Kelly" to account for model uncertainty.</p>
+    </div>
+    <div class="mgrid" id="kellyMetrics"></div>
+    <p class="note" id="kellyNote"></p>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">sharpe ratios</div>
+    <button class="toggle" type="button" data-target="sharpeExp"><span class="toggle-arrow">&#9658;</span> What is the Sharpe ratio?</button>
+    <div id="sharpeExp" class="explainer hidden">
+      <p>Sharpe measures <strong>risk-adjusted return</strong> — how much excess return you earn per unit of volatility you endure. It lets you compare assets with different return and risk profiles on a level playing field.</p>
+      <div class="formula">Sharpe = (expected return − risk-free rate) / volatility</div>
+      <p>The risk-free rate subtraction is critical: it removes the return you could earn for free in Treasuries. What's left is your reward for taking risk. Dividing by volatility normalizes it.</p>
+      <p>Rough benchmarks: below 0.5 is mediocre, 0.5–1.0 is decent, above 1.0 is excellent. If Waymo's Sharpe is significantly higher than the market's, concentration is justified on a risk-adjusted basis. If they're close, you're bearing concentration risk for marginal edge.</p>
+    </div>
+    <div class="mgrid" id="sharpeMetrics"></div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-title">scenario analysis over <span id="horizonLabel">4</span> years</div>
+    <div id="scenarioTable"></div>
+    <p class="note">Bull = +1.5σ/yr, base = expected return, bear = −1σ/yr for Waymo. Market runs at expected return in all scenarios.</p>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
