@@ -22,12 +22,13 @@ This repo is Netlify-ready as a static site because `index.html` is at the proje
 1. Push the branch to GitHub.
 2. In Netlify: **Add new site** → **Import an existing project**.
 3. Select this repository and branch.
-4. Use settings:
-   - **Build command:** (leave empty)
-   - **Publish directory:** `.`
+4. Netlify picks up `netlify.toml` automatically (`publish = "."`).
 5. Deploy.
 
-No `netlify.toml` is required for this setup.
+If you prefer entering settings manually:
+
+- **Build command:** leave empty
+- **Publish directory:** `.`
 
 ## Model assumptions
 
@@ -39,4 +40,12 @@ No `netlify.toml` is required for this setup.
   - Base: expected return
   - Bull: expected return + 1.5σ
 - Market return is held at expected market return in all scenarios.
-- Sale proceeds are immediately added to the non-Waymo allocation.
+- Sale math is tax-aware:
+  - `premium = (sellPrice / vestPrice - 1)`
+  - `soldSharesEquivalent = waymoVal * sellPct / vestPrice`
+  - `grossProceeds = soldSharesEquivalent * sellPrice`
+  - `taxableGain = max(0, soldSharesEquivalent * (sellPrice - vestPrice))`
+  - `taxDue = taxableGain * taxRate`
+  - `afterTaxProceeds = grossProceeds - taxDue`
+  - `postSaleOther = otherVal + afterTaxProceeds`
+- Post-sale scenarios and allocation use **after-tax proceeds** (not gross).
